@@ -12,6 +12,7 @@ class RedisClient {
     async connect() {
         if (!this.isConnected) {
             await this.client.connect();
+            this.client.flushAll();
             this.isConnected = true;
             console.log("Redis connected");
         }

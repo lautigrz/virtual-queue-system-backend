@@ -1,4 +1,4 @@
-const OPEN_TIME = new Date('2026-02-05T20:07:00').getTime();
+const OPEN_TIME = new Date('2026-02-06T17:49:00').getTime();
 
 
 export class EventController {
