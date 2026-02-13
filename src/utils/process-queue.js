@@ -5,34 +5,44 @@ const CAPACITY = 5;
 const SESSION_TTL = 10000;
 
 
-export async function processQueue(clientRedis){
+export async function processQueue(clientRedis) {
 
-    const usuariosActivos = await clientRedis.zCard('active_sessions');
+    while (true) {
+        const next = await clientRedis.zpopmin("waiting_queue", 1);
 
-    if(usuariosActivos >= CAPACITY) return;
+        if (!next || next.length === 0) return;
 
-    const cupos = CAPACITY - usuariosActivos;
+        const [userId, score] = next;
 
-    const batchSize = Math.min(cupos, 5);
+        console.log(`Processing user ${userId} from waiting queue... `);
+        const acquired = await acquire(clientRedis, userId);
 
-    const resultados = await clientRedis.zPopMinCount('waiting_queue', batchSize);
-    
+        if (!acquired) {
+            await clientRedis.zadd("waiting_queue", score, userId);
+            console.log(`User ${userId} re-added to waiting queue. Queue length: ${await clientRedis.zcard("waiting_queue")}`);
+            return;
+        }
 
-    if(resultados && resultados.length > 0){
-        const idsAceptados = resultados.map(id => ({value: id.value, score: Date.now() + SESSION_TTL}));
-
-        await clientRedis.zAdd('active_sessions', idsAceptados);
-        
-        await Promise.all(
-            idsAceptados.map(user =>
-            eventQueue.add(
-                "release",
-                { userId: user.value },
-                { delay: SESSION_TTL }
-            )
-            )
-  );
-
+        await eventQueue.add("release", { userId }, { delay: SESSION_TTL });
     }
 
+}
+
+
+async function acquire(client, userId) {
+    console.log(`Attempting to acquire slot for user ${userId}...`);
+    const now = Date.now();
+
+    await client.zremrangebyscore("active_sessions", "-inf", now);
+
+    const count = await client.zcard("active_sessions");
+
+    if (count >= CAPACITY) {
+        return false;
+    }
+
+    await client.zadd("active_sessions", now + SESSION_TTL, userId);
+
+    console.log(`User ${userId} acquired a slot. Active sessions: ${count + 1}`);
+    return true;
 }

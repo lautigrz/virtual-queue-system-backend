@@ -1,25 +1,29 @@
-import { createClient } from "redis";
+import IORedis from "ioredis";
 
 class RedisClient {
     constructor() {
-        this.client = createClient({
-            url: 'redis://127.0.0.1:6379'
-        });
-
-        this.isConnected = false;
+        this.client = null;
     }
 
-    async connect() {
-        if (!this.isConnected) {
-            await this.client.connect();
-            this.client.flushAll();
-            this.isConnected = true;
-            console.log("Redis connected");
+    connect() {
+        if (!this.client) {
+            this.client = new IORedis({
+                host: "127.0.0.1",
+                port: 6379,
+                maxRetriesPerRequest: null,
+                enableReadyCheck: false
+            });
+
+            this.client.on("connect", () => {
+                console.log("Redis connected");
+            });
         }
+
+        return this.client;
     }
 
-    getClient() {
-        return this.client;
+    duplicate() {
+        return this.connect().duplicate();
     }
 }
 

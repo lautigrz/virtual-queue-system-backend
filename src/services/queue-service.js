@@ -1,63 +1,63 @@
 import { redis } from "../config/redis-client.js";
 
-const client = redis.getClient();
-export class QueueService{
+const client = redis.connect();
+export class QueueService {
 
-    async addToQueue(userId){
-    
-        try {
-            const add = await client.zAdd('waiting_queue', {
-            score: Date.now(), value: userId
-        }, {NX: true});
-        
+    async addToQueue(userId) {
+
+        const add = await client.zadd('waiting_queue', 'NX', Date.now(), userId);
+
+        const userPosition = await client.zrank('waiting_queue', userId);
+        await client.set(`initial_ahead:${userId}`, userPosition, 'NX');
+
         return add;
 
-        } catch (error) {
-            console.error("Error adding to queue:", error);
-            throw error;
-        }
     }
 
 
-    async getStatus(userId){
-        try{
+    async getStatus(userId) {
 
-            const userExists = await client.zScore('active_sessions', userId);
+        const userExists = await client.zscore('active_sessions', userId);
 
-            if(userExists) return JSON.stringify({userId: userId, redirect: '/purchase'});
-            
-            const userPosition = await client.zRank('waiting_queue', userId);
+        if (userExists) return { userId: userId, redirect: '/purchase' }
 
-            if(userPosition === null) return JSON.stringify({status: 'not_in_queue'});
+        const userPosition = await client.zrank('waiting_queue', userId);
 
-            const queueSize = await client.zCard('waiting_queue');
-            
-            const ahead = await client.zRange('waiting_queue', 0, userPosition - 1);
+        console.log(`position in queue: ${userPosition}`);
 
-            await client.set(`initial_ahead:${userId}`,ahead.length,
-                                        { NX: true }
-                                        );
+        if (userPosition === null) return { status: 'not_in_queue' };
 
-            const progress = await this.calculateProgress(userId, ahead.length);
-            
-            return JSON.stringify({status: 'in_queue', position: userPosition + 1, queueSize: queueSize, ahead: ahead.length, progress: progress});
-            
+        const [queueSize, progress] = await Promise.all([
+            client.zcard('waiting_queue'),
+            this.calculateProgress(userId, userPosition)
+        ]);
 
-        }catch(error){
-            console.error("Error getting queue status:", error);
+        const status = {
+            status: 'in_queue',
+            position: userPosition + 1,
+            queueSize: queueSize,
+            ahead: userPosition,
+            progress: progress
         }
+
+        return status;
+
     }
 
 
-     async calculateProgress(userId, currentAhead){
-        const initialAhead = await client.get(`initial_ahead:${userId}`);
+    async calculateProgress(userId, currentAhead) {
+        const p = await client.get(`initial_ahead:${userId}`);
 
-        if(initialAhead === 0) return 100;
-        
+        if (p === null) return 0;
+
+        const initialAhead = parseInt(p);
+
+        if (initialAhead === 0) return 100;
+
         const progressed = ((initialAhead - currentAhead) / initialAhead) * 100;
 
-        return Math.max(0, Math.min(100, Math.round(progressed)));   
-       
+        return Math.max(0, Math.min(100, Math.round(progressed)));
+
     }
 }
 

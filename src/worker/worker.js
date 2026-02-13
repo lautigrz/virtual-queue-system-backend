@@ -1,32 +1,31 @@
 import { Worker } from "bullmq";
-import { bullConnection } from "../config/bull-connection.js";
-import {redis} from "../config/redis-client.js";
-import {processQueue} from "../utils/process-queue.js";
+import { processQueue } from "../utils/process-queue.js";
 import { clearUsuersExpired } from "../utils/delete-queue.js";
 
-await redis.connect();
+import { redis } from "../config/redis-client.js";
+
+const client = redis.connect();
 
 const worker = new Worker("event-queue", async job => {
-    
+
   try {
 
-      if(job.name === "process-user"){
-        console.log("Processing queue...");
-        await processQueue(redis.getClient());
+    if (job.name === "process-user") {
+      console.log("Processing queue...");
+      await processQueue(client);
 
-      }else if(job.name === "release"){
-        console.log("Processing realse...");
-        await clearUsuersExpired(redis.getClient());
-      }
-
-      console.log("processQueue terminó");
-    } catch (err) {
-      console.error("Error en worker:", err);
-      throw err; 
+    } else if (job.name === "release") {
+      console.log("Processing release...");
+      await clearUsuersExpired(client, job.data.userId);
     }
 
+    console.log("processQueue terminó");
+  } catch (err) {
+    console.error("Error en worker:", err);
+    throw err;
+  }
 
-},{
-    connection: bullConnection,
-    concurrency: 1
+}, {
+  connection: client,
+  concurrency: 1
 })

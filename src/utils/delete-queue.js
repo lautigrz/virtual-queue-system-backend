@@ -1,22 +1,10 @@
-import { eventQueue } from "../worker/event-queue.js";
-export async function clearUsuersExpired(clientRedis){
 
-    const now = Date.now();
+export async function clearUsuersExpired(clientRedis, userId) {
 
-    const eliminados = await clientRedis.zRemRangeByScore('active_sessions', '-inf', now);
+  const removed = await clientRedis.zrem("active_sessions", userId);
 
-      if (eliminados === 0) return;
+  if (removed > 0) {
+    console.log(`User ${userId} session expired. Active sessions: ${await clientRedis.zcard("active_sessions")}`);
 
-      const waiting = await clientRedis.zCard("waiting_queue");
-
-      if (waiting === 0) return;
-
-        await eventQueue.add( "process-user", {},
-        {
-            jobId: "process-queue",
-            removeOnComplete: true,
-            removeOnFail: true
-        }
-);
-
+  }
 }
