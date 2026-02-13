@@ -20,7 +20,7 @@ export class QueueController {
             res.status(201).json({ message: "Added to queue", userId: userId });
 
         } catch (error) {
-
+            console.log(error);
             res.status(500).json({ message: "Error adding to queue", error: error.message });
         }
     }

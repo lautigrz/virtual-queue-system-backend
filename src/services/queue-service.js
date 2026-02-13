@@ -1,36 +1,35 @@
-import { redis } from "../config/redis-client.js";
 
-const client = redis.connect();
+import { QueueRepository } from "../repository/queue-repository.js";
+import { ActiveQueueRepository } from "../repository/active-queue-repository.js";
+import { calculateProgress } from "../utils/calculate-progress.js";
+
+const queueRepository = new QueueRepository();
+const activeQueueRepository = new ActiveQueueRepository();
+const EXPIRATION_TIME = 20000000;
 export class QueueService {
 
     async addToQueue(userId) {
 
-        const add = await client.zadd('waiting_queue', 'NX', Date.now(), userId);
-
-        const userPosition = await client.zrank('waiting_queue', userId);
-        await client.set(`initial_ahead:${userId}`, userPosition, 'NX');
+        const add = queueRepository.addToQueue(userId);
 
         return add;
 
     }
-
-
     async getStatus(userId) {
+   
+        const userExists = await activeQueueRepository.isActive(userId);
 
-        const userExists = await client.zscore('active_sessions', userId);
+        if (userExists) return { userId: userId, redirect: '/ticket-selection', "expiration": Date.now() + EXPIRATION_TIME};
 
-        if (userExists) return { userId: userId, redirect: '/purchase' }
-
-        const userPosition = await client.zrank('waiting_queue', userId);
-
-        console.log(`position in queue: ${userPosition}`);
+        const userPosition = await queueRepository.getPosition(userId);
 
         if (userPosition === null) return { status: 'not_in_queue' };
 
-        const [queueSize, progress] = await Promise.all([
-            client.zcard('waiting_queue'),
-            this.calculateProgress(userId, userPosition)
-        ]);
+        const queueSize = await queueRepository.sizeQueue();
+
+        const initialAhead = await queueRepository.getInitialAhead(userId);
+
+        const progress = calculateProgress(initialAhead, userPosition);
 
         const status = {
             status: 'in_queue',
@@ -44,20 +43,5 @@ export class QueueService {
 
     }
 
-
-    async calculateProgress(userId, currentAhead) {
-        const p = await client.get(`initial_ahead:${userId}`);
-
-        if (p === null) return 0;
-
-        const initialAhead = parseInt(p);
-
-        if (initialAhead === 0) return 100;
-
-        const progressed = ((initialAhead - currentAhead) / initialAhead) * 100;
-
-        return Math.max(0, Math.min(100, Math.round(progressed)));
-
-    }
 }
 
