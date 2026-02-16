@@ -8,7 +8,7 @@ class RedisClient {
     connect() {
         if (!this.client) {
             this.client = new IORedis({
-                host: "127.0.0.1",
+                host: process.env.REDIS_HOST || redis,
                 port: 6379,
                 maxRetriesPerRequest: null,
                 enableReadyCheck: false
