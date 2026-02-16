@@ -17,7 +17,7 @@ const main = async () => {
   console.log('Connected to Redis');
 
   app.listen(3000);
-  await addProcessJob();
+  //await addProcessJob();
   console.log('Server is running on port 3000');
   
 };
