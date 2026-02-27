@@ -1,10 +1,6 @@
 import IORedis from 'ioredis';
 
 class RedisClient {
-  constructor() {
-    this.client = null;
-  }
-
   connect() {
     if (!this.client) {
       this.client = new IORedis({

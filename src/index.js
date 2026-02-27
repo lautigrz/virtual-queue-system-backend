@@ -16,10 +16,10 @@ app.use(AppRoutes.routes);
 const main = async () => {
   redis.connect();
   console.log('Connected to Redis');
-
   const PORT = Number(process.env.PORT) || 3000;
   app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
   await addProcessJob();
+
 };
 
 main();
