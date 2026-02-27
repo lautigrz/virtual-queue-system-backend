@@ -26,7 +26,9 @@ export class QueueRepository {
             return 0;
         }
 
-        await client.set(`initial_ahead:${userId}`, rank[1], 'NX');
+        // Guardar posición inicial con TTL para evitar acumulación de claves
+        const ttl = Number(process.env.INITIAL_AHEAD_TTL_SECONDS) || 3600;
+        await client.set(`initial_ahead:${userId}`, rank[1], 'NX', 'EX', ttl);
         return added;
 
     }
@@ -36,7 +38,8 @@ export class QueueRepository {
     }
 
     async getInitialAhead(userId) {
-        return await client.get(`initial_ahead:${userId}`) || 0;
+        const v = await client.get(`initial_ahead:${userId}`);
+        return v === null ? 0 : Number.parseInt(v, 10);
     }
 
     async sizeQueue(){
