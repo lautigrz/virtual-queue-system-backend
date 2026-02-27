@@ -5,7 +5,7 @@ import { calculateProgress } from "../utils/calculate-progress.js";
 
 const queueRepository = new QueueRepository();
 const activeQueueRepository = new ActiveQueueRepository();
-const EXPIRATION_TIME = 20000000;
+const EXPIRATION_TIME = 60000;
 export class QueueService {
 
     async addToQueue(userId) {

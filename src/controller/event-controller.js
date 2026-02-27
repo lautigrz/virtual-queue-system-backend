@@ -1,10 +1,9 @@
-const OPEN_TIME = new Date('2026-02-06T17:49:00').getTime();
+const OPEN_TIME = new Date('2026-02-27T16:17:00').getTime();
 const EXPIRATION_TIME = 20000; // 30 minutes
 
 export class EventController {
 
     
-
     getOpenStatus = async(req, res) => {
 
         if(Date.now() < OPEN_TIME){

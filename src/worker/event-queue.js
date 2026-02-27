@@ -1,21 +1,22 @@
-import { Queue } from "bullmq";
-import { redis } from "../config/redis-client.js";
+import { Queue } from 'bullmq';
+import { bullConnection } from '../config/bull-connection.js';
 
-const client = redis.connect();
-
-export const eventQueue = new Queue("event-queue", {
-    connection: client
-})
+export const eventQueue = new Queue('event-queue', {
+    connection: bullConnection,
+});
 
 export const addProcessJob = async () => {
+   
     await eventQueue.add(
-        "process-user",
+        'process-user',
         {},
         {
-            repeat: { every: 1000 },
-            jobId: "process-user-job"
+            repeat: { every: Number(process.env.PROCESS_INTERVAL_MS) || 1000 },
+            jobId: process.env.PROCESS_JOB_ID || 'process-user-scheduler',
+            removeOnComplete: true,
+            removeOnFail: false,
         }
     );
 
-    console.log("Scheduler process-user registrado");
-}
+    console.log('Scheduler process-user registrado');
+};
